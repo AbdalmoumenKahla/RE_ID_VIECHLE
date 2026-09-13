@@ -1,0 +1,2 @@
+"""Vehicle Attendance desktop application."""
+

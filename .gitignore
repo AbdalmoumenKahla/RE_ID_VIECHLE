@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.spec
+data/*.sqlite3
+data/settings.json
+data/vehicles/
+data/captures/
+models/*.pt
+models/*.pth
+models/*.pth.tar
+
