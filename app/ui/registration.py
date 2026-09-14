@@ -27,10 +27,10 @@ class RegistrationPage(QWidget):
         self.thread: QThread | None = None
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)
-        root.addWidget(PageHeader("Register vehicle", "Create a persistent identity from a photo or from one representative tracked vehicle in a video."))
+        root.addWidget(PageHeader("تسجيل مركبة", "أنشئ هوية ثابتة من صورة أو من مركبة ممثلة واحدة متتبعة في فيديو."))
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._photo_tab(), "From photo")
-        self.tabs.addTab(self._video_tab(), "From video")
+        self.tabs.addTab(self._photo_tab(), "من صورة")
+        self.tabs.addTab(self._video_tab(), "من فيديو")
         root.addWidget(self.tabs, 1)
 
     def _form(self, register_callback) -> tuple[QWidget, QLineEdit, QLineEdit]:
@@ -38,12 +38,12 @@ class RegistrationPage(QWidget):
         layout = QVBoxLayout(panel)
         form = QFormLayout()
         name, owner = QLineEdit(), QLineEdit()
-        name.setPlaceholderText("e.g., Car A / School Van 2")
-        owner.setPlaceholderText("e.g., Ahmed")
-        form.addRow("Vehicle name *", name)
-        form.addRow("Owner", owner)
+        name.setPlaceholderText("مثال: المركبة أ / حافلة المدرسة 2")
+        owner.setPlaceholderText("مثال: أحمد")
+        form.addRow("اسم المركبة *", name)
+        form.addRow("المالك", owner)
         layout.addLayout(form)
-        register = QPushButton("Register vehicle")
+        register = QPushButton("تسجيل المركبة")
         register.setObjectName("primaryButton")
         register.clicked.connect(register_callback)
         layout.addWidget(register)
@@ -54,14 +54,14 @@ class RegistrationPage(QWidget):
         tab = QWidget()
         layout = QHBoxLayout(tab)
         left, self.photo_name, self.photo_owner = self._form(self.register_photo)
-        choose = QPushButton("Select photo")
+        choose = QPushButton("اختيار صورة")
         choose.clicked.connect(self.choose_photo)
         left.layout().insertWidget(0, choose)
-        self.photo_status = QLabel("Select a photo to detect and crop its vehicle.")
+        self.photo_status = QLabel("اختر صورة لاكتشاف المركبة واقتصاصها.")
         self.photo_status.setObjectName("muted")
         self.photo_status.setWordWrap(True)
         left.layout().insertWidget(1, self.photo_status)
-        self.photo_preview = QLabel("No vehicle crop yet")
+        self.photo_preview = QLabel("لا توجد صورة مقصوصة للمركبة بعد")
         self.photo_preview.setObjectName("imagePreview")
         self.photo_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.photo_preview.setMinimumSize(510, 360)
@@ -73,13 +73,13 @@ class RegistrationPage(QWidget):
         tab = QWidget()
         layout = QHBoxLayout(tab)
         side, self.video_name, self.video_owner = self._form(self.register_video_candidate)
-        choose = QPushButton("Select registration video")
+        choose = QPushButton("اختيار فيديو التسجيل")
         choose.clicked.connect(self.choose_video)
         side.layout().insertWidget(0, choose)
         self.video_progress = QProgressBar()
         self.video_progress.setTextVisible(True)
         side.layout().insertWidget(1, self.video_progress)
-        self.video_status = QLabel("The video is sampled, detected and tracked. Each result below is one temporary track, not a permanent identity.")
+        self.video_status = QLabel("يُؤخذ من الفيديو عينات ويُكتشف ويُتتبع. كل نتيجة أدناه مسار مؤقت وليست هوية ثابتة.")
         self.video_status.setWordWrap(True)
         self.video_status.setObjectName("muted")
         side.layout().insertWidget(2, self.video_status)
@@ -88,9 +88,9 @@ class RegistrationPage(QWidget):
         self.candidates.setMinimumWidth(440)
         preview_holder = QWidget()
         preview_layout = QVBoxLayout(preview_holder)
-        preview_layout.addWidget(QLabel("Unique tracked vehicles"))
+        preview_layout.addWidget(QLabel("المركبات المتتبعة الفريدة"))
         preview_layout.addWidget(self.candidates, 1)
-        self.video_preview = QLabel("Choose a detected vehicle")
+        self.video_preview = QLabel("اختر مركبة مكتشفة")
         self.video_preview.setObjectName("imagePreview")
         self.video_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_preview.setMinimumSize(350, 260)
@@ -100,10 +100,10 @@ class RegistrationPage(QWidget):
         return tab
 
     def choose_photo(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose photo", "", "Images (*.jpg *.jpeg *.png *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(self, "اختيار صورة", "", "صور (*.jpg *.jpeg *.png *.bmp)")
         if not path:
             return
-        self.photo_status.setText("Detecting vehicle and preparing local Re-ID feature…")
+        self.photo_status.setText("جارٍ اكتشاف المركبة وتجهيز ميزة Re-ID المحلية…")
         self.photo_crop = None
         self._start_photo_worker(path)
 
@@ -113,7 +113,7 @@ class RegistrationPage(QWidget):
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.photo_ready)
-        self.worker.failed.connect(lambda message: self.photo_status.setText(f"Error: {message}"))
+        self.worker.failed.connect(lambda message: self.photo_status.setText(f"خطأ: {message}"))
         self.worker.finished.connect(self.thread.quit)
         self.worker.failed.connect(self.thread.quit)
         self.thread.finished.connect(self.worker.deleteLater)
@@ -127,13 +127,13 @@ class RegistrationPage(QWidget):
         self.photo_status.setText(status)
 
     def choose_video(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose registration video", "", "Videos (*.mp4 *.avi *.mov *.mkv);;All files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, "اختيار فيديو التسجيل", "", "فيديوهات (*.mp4 *.avi *.mov *.mkv);;كل الملفات (*)")
         if not path:
             return
         self.video_candidates.clear()
         self.candidates.clear()
         self.video_progress.setValue(0)
-        self.video_status.setText("Loading the local model and scanning video…")
+        self.video_status.setText("جارٍ تحميل النموذج المحلي وفحص الفيديو…")
         self.thread = QThread(self)
         self.worker = RegistrationVideoWorker(path, str(self.context.database.path), self.context.settings)
         self.worker.moveToThread(self.thread)
@@ -141,7 +141,7 @@ class RegistrationPage(QWidget):
         self.worker.progress.connect(self.registration_progress)
         self.worker.candidate.connect(self.add_candidate)
         self.worker.finished.connect(self.registration_finished)
-        self.worker.failed.connect(lambda message: self.video_status.setText(f"Error: {message}"))
+        self.worker.failed.connect(lambda message: self.video_status.setText(f"خطأ: {message}"))
         self.worker.finished.connect(self.thread.quit)
         self.worker.failed.connect(self.thread.quit)
         self.thread.finished.connect(self.worker.deleteLater)
@@ -175,23 +175,23 @@ class RegistrationPage(QWidget):
 
     def _register(self, crop: np.ndarray | None, embedding: np.ndarray | None, name: str, owner: str, label: str) -> bool:
         if crop is None or crop.size == 0:
-            QMessageBox.information(self, "Select a vehicle", "Select and analyze a photo, or choose a tracked video candidate first.")
+            QMessageBox.information(self, "اختر مركبة", "حلّل صورة أو اختر مركبة متتبعة من الفيديو أولاً.")
             return False
         if not name.strip():
-            QMessageBox.information(self, "Vehicle name required", "Give this vehicle a clear name before registering it.")
+            QMessageBox.information(self, "اسم المركبة مطلوب", "أدخل اسماً واضحاً للمركبة قبل تسجيلها.")
             return False
         try:
             vehicle_id = self.context.database.add_vehicle(name, owner)
         except Exception as exc:
-            QMessageBox.warning(self, "Could not register", f"{exc}\nVehicle names must be unique.")
+            QMessageBox.warning(self, "تعذّر التسجيل", f"{exc}\nيجب أن تكون أسماء المركبات فريدة.")
             return False
         target = store_image(crop, self.context.vehicle_dir / str(vehicle_id), "reference")
         if embedding is None:
-            QMessageBox.warning(self, "Feature unavailable", "No Re-ID feature could be created for this vehicle.")
+            QMessageBox.warning(self, "الميزة غير متاحة", "تعذّر إنشاء ميزة Re-ID لهذه المركبة.")
             self.context.database.delete_vehicle(vehicle_id)
             return False
         self.context.database.add_reference(vehicle_id, target, embedding, label)
-        QMessageBox.information(self, "Vehicle registered", f"{name.strip()} is now a local Re-ID profile with one reference image.")
+        QMessageBox.information(self, "تم تسجيل المركبة", f"أصبحت {name.strip()} الآن ملف Re-ID محلياً مع صورة مرجعية واحدة.")
         self.registered.emit()
         return True
 
@@ -199,7 +199,7 @@ class RegistrationPage(QWidget):
         if self._register(self.photo_crop, self.photo_embedding, self.photo_name.text(), self.photo_owner.text(), "photo registration"):
             self.photo_crop = None
             self.photo_embedding = None
-            self.photo_preview.setText("No vehicle crop yet")
+            self.photo_preview.setText("لا توجد صورة مقصوصة للمركبة بعد")
             self.photo_name.clear()
             self.photo_owner.clear()
 

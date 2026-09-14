@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.context = AppContext()
-        self.setWindowTitle("Vehicle Attendance System")
+        self.setWindowTitle("نظام حضور المركبات")
         self.setMinimumSize(1150, 720)
         self.resize(1440, 900)
         self._build()
@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_all)
         self.timer.start(2500)
+        self.dashboard.vehicle_deleted.connect(self.refresh_all)
 
     def _build(self) -> None:
         outer = QWidget()
@@ -52,23 +53,22 @@ class MainWindow(QMainWindow):
         side.setContentsMargins(18, 24, 18, 20)
         brand = QLabel("PARKWISE")
         brand.setObjectName("brand")
-        sub = QLabel("VEHICLE ATTENDANCE")
+        brand.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub = QLabel("حضور المركبات")
         sub.setObjectName("brandSub")
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         side.addWidget(brand)
         side.addWidget(sub)
         side.addSpacing(32)
         self.navigation = QListWidget()
         self.navigation.setObjectName("navigation")
         self.navigation.setSpacing(4)
-        for title in ("Dashboard", "Vehicles", "Register vehicle", "Live camera", "Video testing", "Attendance history", "Unknown vehicles", "Settings"):
+        for title in ("لوحة التحكم", "المركبات", "تسجيل مركبة", "الكاميرا المباشرة", "اختبار الفيديو", "سجل الحضور", "مركبات غير معروفة", "الإعدادات"):
             item = QListWidgetItem(title)
             item.setSizeHint(item.sizeHint().expandedTo(QSize(0, 43)))
             self.navigation.addItem(item)
         self.navigation.currentRowChanged.connect(self.change_page)
         side.addWidget(self.navigation, 1)
-        local = QLabel("LOCAL-FIRST\nSQLite · YOLO · Re-ID")
-        local.setObjectName("localBadge")
-        side.addWidget(local)
         outer_layout.addWidget(sidebar)
         self.stack = QStackedWidget()
         self.dashboard = DashboardPage(self.context)
@@ -86,9 +86,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(outer)
         self.navigation.setCurrentRow(0)
         self.dashboard.vehicle_requested.connect(self.open_profile)
+        self.dashboard.vehicle_deleted.connect(self.refresh_all)
         self.vehicles.open_profile.connect(self.open_profile)
+        self.vehicles.vehicle_deleted.connect(self.refresh_all)
         self.registration.registered.connect(self.refresh_all)
         self.unknown.registered.connect(self.refresh_all)
+        self.unknown.deleted.connect(self.refresh_all)
         self.live.stream_stopped.connect(self.refresh_all)
         self.video.stream_stopped.connect(self.refresh_all)
 
@@ -112,7 +115,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         if self.live.worker or self.video.worker:
-            choice = QMessageBox.question(self, "Exit Vehicle Attendance", "A source may still be processing. Stop it and exit?")
+            choice = QMessageBox.question(self, "الخروج من نظام حضور المركبات", "قد يكون أحد المصادر قيد المعالجة. هل تريد إيقافه والخروج؟")
             if choice != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
@@ -124,14 +127,14 @@ class MainWindow(QMainWindow):
 APP_STYLE = """
 QMainWindow, QWidget { background: #f4f7fb; color: #172033; font-family: 'Segoe UI'; font-size: 13px; }
 QFrame#sidebar { background: #10223d; color: #e7eefb; }
-QLabel#brand { color: #ffffff; font-size: 21px; font-weight: 800; letter-spacing: 1px; }
-QLabel#brandSub { color: #9db3d0; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+QLabel#brand { color: #f7c948; font-family: 'Trebuchet MS'; font-size: 28px; font-weight: 900; letter-spacing: 2px; padding-bottom: 4px; }
+QLabel#brandSub { color: #d9efff; font-family: 'Tahoma'; font-size: 15px; font-weight: 700; }
 QListWidget#navigation { border: 0; outline: 0; background: transparent; color: #bdd0ea; font-size: 14px; }
 QListWidget#navigation::item { border-radius: 8px; padding: 11px 14px; margin: 1px 0; }
 QListWidget#navigation::item:selected { background: #2064d8; color: #ffffff; font-weight: 700; }
 QListWidget#navigation::item:hover:!selected { background: #1a3559; color: #ffffff; }
 QLabel#localBadge { border: 1px solid #294a73; color: #9db3d0; border-radius: 7px; padding: 10px; font-size: 10px; font-weight: 700; }
-QLabel#pageTitle { font-size: 27px; font-weight: 750; color: #13213a; }
+QLabel#pageTitle { color: #0b4f6c; font-family: 'Tahoma'; font-size: 32px; font-weight: 800; padding-bottom: 4px; }
 QLabel#sectionTitle { font-size: 16px; font-weight: 700; color: #172033; margin-top: 12px; }
 QLabel#muted { color: #66738a; }
 QFrame#statCard { background: #ffffff; border: 1px solid #e1e8f2; border-radius: 11px; min-height: 88px; }
@@ -162,7 +165,8 @@ QTabBar::tab:selected { color: #1c5dca; font-weight: 700; }
 
 def start_application() -> int:
     app = QApplication.instance() or QApplication([])
-    app.setApplicationName("Vehicle Attendance System")
+    app.setApplicationName("نظام حضور المركبات")
+    app.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
     app.setStyleSheet(APP_STYLE)
     window = MainWindow()
     window.show()

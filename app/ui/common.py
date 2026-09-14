@@ -7,12 +7,26 @@ from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 
+STATUS_TEXT = {
+    "PRESENT": "موجود",
+    "LEFT": "غادر",
+    "NOT SEEN": "لم يُر",
+}
+
+MONTHS = {
+    1: "يناير", 2: "فبراير", 3: "مارس", 4: "أبريل", 5: "مايو", 6: "يونيو",
+    7: "يوليو", 8: "أغسطس", 9: "سبتمبر", 10: "أكتوبر", 11: "نوفمبر", 12: "ديسمبر",
+}
+
+
 def iso_display(value: str | None, short: bool = False) -> str:
     if not value:
         return "—"
     try:
         parsed = datetime.fromisoformat(value)
-        return parsed.strftime("%H:%M:%S") if short else parsed.strftime("%d %b %Y, %H:%M")
+        if short:
+            return parsed.strftime("%H:%M:%S")
+        return f"{parsed.day:02d} {MONTHS[parsed.month]} {parsed.year}، {parsed:%H:%M}"
     except ValueError:
         return value
 
@@ -26,7 +40,7 @@ def duration(arrival: str | None, departure: str | None = None) -> str:
         seconds = max(0, int((end - start).total_seconds()))
         hours, seconds = divmod(seconds, 3600)
         minutes = seconds // 60
-        return f"{hours}h {minutes:02d}m"
+        return f"{hours} س {minutes:02d} د"
     except ValueError:
         return "—"
 
@@ -65,7 +79,7 @@ class PageHeader(QWidget):
 
 
 class VideoCanvas(QLabel):
-    def __init__(self, text: str = "No video source selected") -> None:
+    def __init__(self, text: str = "لم يتم اختيار مصدر فيديو") -> None:
         super().__init__(text)
         self.setObjectName("videoCanvas")
         self.setMinimumSize(640, 360)
@@ -84,8 +98,10 @@ class VideoCanvas(QLabel):
 
 
 def status_badge(status: str) -> QLabel:
-    label = QLabel(status)
+    label = QLabel(STATUS_TEXT.get(status, status))
     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    # These deliberately use a generous hit-area because attendance status is
+    # the primary thing staff need to scan from a distance.
+    label.setMinimumSize(112, 38)
     label.setObjectName("presentBadge" if status == "PRESENT" else "leftBadge" if status == "LEFT" else "neutralBadge")
     return label
-

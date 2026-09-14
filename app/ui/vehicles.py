@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import cv2
 from PySide6.QtCore import Qt, Signal
@@ -15,7 +16,7 @@ class VehicleProfileDialog(QDialog):
     def __init__(self, context, vehicle_id: int, parent=None) -> None:
         super().__init__(parent)
         self.context, self.vehicle_id = context, vehicle_id
-        self.setWindowTitle("Vehicle profile")
+        self.setWindowTitle("ملف المركبة")
         self.resize(900, 650)
         root = QVBoxLayout(self)
         self.header = QLabel()
@@ -30,25 +31,25 @@ class VehicleProfileDialog(QDialog):
         self.references = QListWidget()
         self.references.setMinimumWidth(330)
         self.references.currentItemChanged.connect(self.show_reference)
-        left_layout.addWidget(QLabel("Reference images"))
+        left_layout.addWidget(QLabel("الصور المرجعية"))
         left_layout.addWidget(self.references, 1)
         buttons = QHBoxLayout()
-        add = QPushButton("Add reference image")
+        add = QPushButton("إضافة صورة مرجعية")
         add.clicked.connect(self.add_reference)
-        remove = QPushButton("Remove selected")
+        remove = QPushButton("إزالة المحدد")
         remove.setObjectName("dangerButton")
         remove.clicked.connect(self.remove_reference)
         buttons.addWidget(add)
         buttons.addWidget(remove)
         left_layout.addLayout(buttons)
-        self.preview = QLabel("Choose a reference image")
+        self.preview = QLabel("اختر صورة مرجعية")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumSize(390, 270)
         self.preview.setObjectName("imagePreview")
         right_layout.addWidget(self.preview)
-        right_layout.addWidget(QLabel("Attendance history"))
+        right_layout.addWidget(QLabel("سجل الحضور"))
         self.history = QTableWidget(0, 4)
-        self.history.setHorizontalHeaderLabels(["Date", "Arrival", "Departure", "Duration"])
+        self.history.setHorizontalHeaderLabels(["التاريخ", "الوصول", "المغادرة", "المدة"])
         self.history.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.history.verticalHeader().hide()
         self.history.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -69,11 +70,11 @@ class VehicleProfileDialog(QDialog):
             return
         sessions = self.context.database.vehicle_history(self.vehicle_id)
         latest = sessions[0] if sessions else None
-        self.header.setText(f"{vehicle['name']}  ·  {vehicle['owner'] or 'No owner'}")
+        self.header.setText(f"{vehicle['name']}  ·  {vehicle['owner'] or 'بدون مالك'}")
         if latest and latest["status"] == "PRESENT":
-            self.status.setText(f"PRESENT\nArrived {iso_display(latest['arrival_time'])}  ·  {duration(latest['arrival_time'])}")
+            self.status.setText(f"موجود\nوصل {iso_display(latest['arrival_time'])}  ·  {duration(latest['arrival_time'])}")
         else:
-            self.status.setText("NOT CURRENTLY PRESENT")
+            self.status.setText("غير موجود حالياً")
         refs = self.context.database.reference_images(self.vehicle_id)
         self.references.clear()
         for ref in refs:
@@ -95,12 +96,12 @@ class VehicleProfileDialog(QDialog):
         self.preview.setPixmap(pixmap.scaled(self.preview.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
     def add_reference(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose vehicle reference", "", "Images (*.jpg *.jpeg *.png *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(self, "اختيار صورة مرجعية للمركبة", "", "صور (*.jpg *.jpeg *.png *.bmp)")
         if not path:
             return
         image = cv2.imread(path)
         if image is None:
-            QMessageBox.warning(self, "Invalid image", "The selected image could not be opened.")
+            QMessageBox.warning(self, "صورة غير صالحة", "تعذّر فتح الصورة المحددة.")
             return
         # Adding a reference is intentionally crop-preserving: it lets staff
         # include front/side/rear viewpoints that YOLO may crop differently.
@@ -114,7 +115,7 @@ class VehicleProfileDialog(QDialog):
         if not item:
             return
         reference = item.data(Qt.ItemDataRole.UserRole)
-        if QMessageBox.question(self, "Remove reference", "Remove this visual reference and its embedding?") == QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "إزالة الصورة المرجعية", "هل تريد إزالة هذه الصورة المرجعية وميزة التضمين الخاصة بها؟") == QMessageBox.StandardButton.Yes:
             self.context.database.remove_reference(reference["id"])
             self.preview.clear()
             self.refresh()
@@ -122,24 +123,29 @@ class VehicleProfileDialog(QDialog):
 
 class VehiclesPage(QWidget):
     open_profile = Signal(int)
+    vehicle_deleted = Signal()
 
     def __init__(self, context) -> None:
         super().__init__()
         self.context = context
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)
-        root.addWidget(PageHeader("Vehicles", "Manage identity profiles and add reference images from different views."))
+        root.addWidget(PageHeader("المركبات", "أدر ملفات الهوية وأضف صوراً مرجعية من زوايا مختلفة."))
         tools = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Search vehicle or owner…")
+        self.search.setPlaceholderText("ابحث عن مركبة أو مالك…")
         self.search.textChanged.connect(self.refresh)
         tools.addWidget(self.search, 1)
-        profile = QPushButton("Open profile")
+        profile = QPushButton("فتح الملف")
         profile.clicked.connect(self.open_selected)
         tools.addWidget(profile)
+        delete = QPushButton("حذف المركبة المحددة")
+        delete.setObjectName("dangerButton")
+        delete.clicked.connect(self.delete_selected)
+        tools.addWidget(delete)
         root.addLayout(tools)
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Vehicle", "Owner", "References", "Created", "Vehicle ID"])
+        self.table.setHorizontalHeaderLabels(["المركبة", "المالك", "المراجع", "تاريخ الإنشاء", "معرّف المركبة"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setColumnHidden(4, True)
@@ -147,6 +153,26 @@ class VehiclesPage(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.cellDoubleClicked.connect(lambda *_: self.open_selected())
         root.addWidget(self.table, 1)
+
+    def delete_selected(self) -> None:
+        selection = self.table.selectionModel().selectedRows()
+        if not selection:
+            QMessageBox.information(self, "اختر مركبة", "حدد مركبة من الجدول أولاً.")
+            return
+        row = selection[0].row()
+        vehicle_id = int(self.table.item(row, 4).text())
+        vehicle_name = self.table.item(row, 0).text()
+        choice = QMessageBox.question(
+            self,
+            "تأكيد حذف المركبة",
+            f"هل تريد حذف المركبة «{vehicle_name}» وكل صورها وسجل حضورها؟",
+        )
+        if choice != QMessageBox.StandardButton.Yes:
+            return
+        self.context.database.delete_vehicle(vehicle_id)
+        shutil.rmtree(self.context.vehicle_dir / str(vehicle_id), ignore_errors=True)
+        self.refresh()
+        self.vehicle_deleted.emit()
 
     def refresh(self) -> None:
         rows = self.context.database.list_vehicles(self.search.text())

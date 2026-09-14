@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import os
 
 import cv2
 import numpy as np
@@ -18,26 +19,26 @@ class HistoryPage(QWidget):
         self.context = context
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)
-        root.addWidget(PageHeader("Attendance history", "Filter local visit sessions and export them to a CSV file that opens in Microsoft Excel."))
+        root.addWidget(PageHeader("سجل الحضور", "صفِّ جلسات الزيارة المحلية وصدّرها إلى ملف CSV يمكن فتحه في Microsoft Excel."))
         filters = QHBoxLayout()
         self.date, self.vehicle, self.owner, self.camera = QLineEdit(), QLineEdit(), QLineEdit(), QLineEdit()
-        self.date.setPlaceholderText("Date: YYYY-MM-DD")
-        self.vehicle.setPlaceholderText("Vehicle")
-        self.owner.setPlaceholderText("Owner")
-        self.camera.setPlaceholderText("Camera")
+        self.date.setPlaceholderText("التاريخ: YYYY-MM-DD")
+        self.vehicle.setPlaceholderText("المركبة")
+        self.owner.setPlaceholderText("المالك")
+        self.camera.setPlaceholderText("الكاميرا")
         self.status = QComboBox()
-        self.status.addItems(["All", "PRESENT", "LEFT"])
+        self.status.addItems(["الكل", "موجود", "غادر"])
         for widget in (self.date, self.vehicle, self.owner, self.camera):
             widget.returnPressed.connect(self.refresh)
-        apply = QPushButton("Apply filters")
+        apply = QPushButton("تطبيق الفلاتر")
         apply.clicked.connect(self.refresh)
-        export = QPushButton("Export CSV")
+        export = QPushButton("تصدير CSV")
         export.clicked.connect(self.export_csv)
         for widget in (self.date, self.vehicle, self.owner, self.camera, self.status, apply, export):
             filters.addWidget(widget)
         root.addLayout(filters)
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(["Vehicle", "Owner", "Date", "Arrival", "Departure", "Duration", "Status"])
+        self.table.setHorizontalHeaderLabels(["المركبة", "المالك", "التاريخ", "الوصول", "المغادرة", "المدة", "الحالة"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.verticalHeader().hide()
@@ -45,7 +46,8 @@ class HistoryPage(QWidget):
         root.addWidget(self.table, 1)
 
     def rows(self):
-        return self.context.database.history(self.date.text().strip(), self.vehicle.text().strip(), self.owner.text().strip(), self.status.currentText(), self.camera.text().strip())
+        status = {"الكل": "All", "موجود": "PRESENT", "غادر": "LEFT"}[self.status.currentText()]
+        return self.context.database.history(self.date.text().strip(), self.vehicle.text().strip(), self.owner.text().strip(), status, self.camera.text().strip())
 
     def refresh(self) -> None:
         rows = self.rows()
@@ -56,49 +58,58 @@ class HistoryPage(QWidget):
                 self.table.setItem(index, column, QTableWidgetItem(value))
 
     def export_csv(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Export attendance CSV", "attendance_history.csv", "CSV files (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, "تصدير سجل الحضور CSV", "attendance_history.csv", "ملفات CSV (*.csv)")
         if not path:
             return
         try:
             with open(path, "w", newline="", encoding="utf-8-sig") as file:
                 writer = csv.writer(file)
-                writer.writerow(["Vehicle", "Owner", "Arrival", "Departure", "Duration", "Status", "Camera"])
+                writer.writerow(["المركبة", "المالك", "الوصول", "المغادرة", "المدة", "الحالة", "الكاميرا"])
                 for row in self.rows():
                     writer.writerow([row["name"], row["owner"], row["arrival_time"], row["departure_time"] or "", duration(row["arrival_time"], row["departure_time"]), row["status"], row["camera_name"] or ""])
-            QMessageBox.information(self, "Export complete", f"Saved {len(self.rows())} visits to:\n{path}")
+            QMessageBox.information(self, "اكتمل التصدير", f"تم حفظ {len(self.rows())} زيارة في:\n{path}")
         except OSError as exc:
-            QMessageBox.warning(self, "Export failed", str(exc))
+            QMessageBox.warning(self, "فشل التصدير", str(exc))
 
 
 class UnknownVehiclesPage(QWidget):
     registered = Signal()
+    deleted = Signal()
 
     def __init__(self, context) -> None:
         super().__init__()
         self.context = context
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)
-        root.addWidget(PageHeader("Unknown vehicles", "Review low-confidence/unmatched sightings and promote one to a permanent registered profile."))
+        root.addWidget(PageHeader("مركبات غير معروفة", "راجع الرصد منخفض الثقة أو غير المطابق، وحوّل أحدها إلى ملف مسجّل دائم."))
         bar = QHBoxLayout()
-        refresh = QPushButton("Refresh")
+        refresh = QPushButton("تحديث")
         refresh.clicked.connect(self.refresh)
-        register = QPushButton("Register selected unknown")
+        register = QPushButton("تسجيل المركبة المحددة")
         register.setObjectName("primaryButton")
         register.clicked.connect(self.register_selected)
         bar.addWidget(refresh)
         bar.addWidget(register)
+        delete = QPushButton("حذف المركبة المحددة")
+        delete.setObjectName("dangerButton")
+        delete.clicked.connect(self.delete_selected)
+        bar.addWidget(delete)
+        delete_all = QPushButton("حذف جميع غير المعروفة")
+        delete_all.setObjectName("dangerButton")
+        delete_all.clicked.connect(self.delete_all)
+        bar.addWidget(delete_all)
         bar.addStretch()
         root.addLayout(bar)
         content = QHBoxLayout()
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["ID", "First seen", "Last seen", "Source", "Best similarity"])
+        self.table.setHorizontalHeaderLabels(["المعرّف", "أول رصد", "آخر رصد", "المصدر", "أفضل تطابق"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.verticalHeader().hide()
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.itemSelectionChanged.connect(self.show_selected)
         content.addWidget(self.table, 2)
-        self.preview = QLabel("Select a sighting")
+        self.preview = QLabel("اختر رصداً")
         self.preview.setObjectName("imagePreview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumSize(330, 260)
@@ -125,21 +136,21 @@ class UnknownVehiclesPage(QWidget):
     def register_selected(self) -> None:
         selected = self.table.selectionModel().selectedRows()
         if not selected:
-            QMessageBox.information(self, "Select a sighting", "Choose an unknown vehicle first.")
+            QMessageBox.information(self, "اختر رصداً", "اختر مركبة غير معروفة أولاً.")
             return
         unknown = self.context.database.get_unknown(int(self.table.item(selected[0].row(), 0).text()))
         if not unknown:
             return
         dialog = QDialog(self)
-        dialog.setWindowTitle("Register unknown vehicle")
+        dialog.setWindowTitle("تسجيل مركبة غير معروفة")
         layout = QVBoxLayout(dialog)
-        layout.addWidget(QLabel("Use the selected crop as the first reference image."))
+        layout.addWidget(QLabel("استخدم الصورة المحددة كأول صورة مرجعية."))
         name, owner = QLineEdit(), QLineEdit()
-        name.setPlaceholderText("Vehicle name")
-        owner.setPlaceholderText("Owner")
+        name.setPlaceholderText("اسم المركبة")
+        owner.setPlaceholderText("المالك")
         form = QFormLayout()
-        form.addRow("Vehicle name *", name)
-        form.addRow("Owner", owner)
+        form.addRow("اسم المركبة *", name)
+        form.addRow("المالك", owner)
         layout.addLayout(form)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok)
         buttons.accepted.connect(dialog.accept)
@@ -157,7 +168,54 @@ class UnknownVehiclesPage(QWidget):
             self.refresh()
             self.registered.emit()
         except Exception as exc:
-            QMessageBox.warning(self, "Registration failed", str(exc))
+            QMessageBox.warning(self, "فشل التسجيل", str(exc))
+
+    def delete_selected(self) -> None:
+        selected = self.table.selectionModel().selectedRows()
+        if not selected:
+            QMessageBox.information(self, "اختر مركبة", "حدد مركبة غير معروفة من الجدول أولاً.")
+            return
+        row = selected[0].row()
+        unknown_id = int(self.table.item(row, 0).text())
+        unknown = self.context.database.get_unknown(unknown_id)
+        if not unknown:
+            return
+        choice = QMessageBox.question(
+            self,
+            "تأكيد حذف المركبة",
+            "هل تريد حذف هذا الرصد والصورة المحفوظة؟",
+        )
+        if choice != QMessageBox.StandardButton.Yes:
+            return
+        self.context.database.delete_unknown(unknown_id)
+        try:
+            os.remove(unknown["image_path"])
+        except OSError:
+            pass
+        self.refresh()
+        self.preview.clear()
+        self.deleted.emit()
+
+    def delete_all(self) -> None:
+        count = len(self.context.database.list_unknown())
+        if not count:
+            QMessageBox.information(self, "لا توجد مركبات", "لا توجد مركبات غير معروفة لحذفها.")
+            return
+        choice = QMessageBox.question(
+            self,
+            "تأكيد حذف الكل",
+            f"هل تريد حذف جميع المركبات غير المعروفة ({count}) وصورها المحفوظة؟",
+        )
+        if choice != QMessageBox.StandardButton.Yes:
+            return
+        for image_path in self.context.database.delete_all_unknown():
+            try:
+                os.remove(image_path)
+            except OSError:
+                pass
+        self.refresh()
+        self.preview.clear()
+        self.deleted.emit()
 
 
 class SettingsPage(QWidget):
@@ -165,6 +223,7 @@ class SettingsPage(QWidget):
 
     def __init__(self, context) -> None:
         super().__init__()
+        self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.context = context
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)

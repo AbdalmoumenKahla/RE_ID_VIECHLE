@@ -21,34 +21,34 @@ class StreamPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 26, 30, 30)
         if live:
-            root.addWidget(PageHeader("Live camera", "Connect to a local RTSP/IP stream. Processing and attendance stay on this computer."))
+            root.addWidget(PageHeader("الكاميرا المباشرة", "اتصل ببث RTSP/IP محلي. تتم المعالجة وتسجيل الحضور على هذا الحاسوب."))
             source_row = QFormLayout()
             self.source = QLineEdit(context.settings.camera_url)
             self.source.setPlaceholderText("rtsp://192.168.1.100:554/…")
-            self.camera_name = QLineEdit("Parking entrance")
-            source_row.addRow("Camera URL", self.source)
-            source_row.addRow("Camera name", self.camera_name)
+            self.camera_name = QLineEdit("مدخل الموقف")
+            source_row.addRow("رابط الكاميرا", self.source)
+            source_row.addRow("اسم الكاميرا", self.camera_name)
             root.addLayout(source_row)
         else:
-            root.addWidget(PageHeader("Video testing", "Run a recorded video locally with detection, temporary tracks, Re-ID matches, and attendance sessions."))
+            root.addWidget(PageHeader("اختبار الفيديو", "شغّل فيديو مسجلاً محلياً مع الكشف والمسارات المؤقتة ومطابقات Re-ID وجلسات الحضور."))
             line = QHBoxLayout()
             self.source = QLineEdit()
             self.source.setReadOnly(True)
-            self.source.setPlaceholderText("Choose a recorded video to test…")
-            choose = QPushButton("Select video")
+            self.source.setPlaceholderText("اختر فيديو مسجلاً للاختبار…")
+            choose = QPushButton("اختيار فيديو")
             choose.clicked.connect(self.choose_video)
             line.addWidget(self.source, 1)
             line.addWidget(choose)
             root.addLayout(line)
-            self.camera_name = QLineEdit("Video testing")
+            self.camera_name = QLineEdit("اختبار الفيديو")
         commands = QHBoxLayout()
-        self.start = QPushButton("Connect" if live else "Start")
+        self.start = QPushButton("اتصال" if live else "بدء")
         self.start.setObjectName("primaryButton")
         self.start.clicked.connect(self.start_stream)
-        self.stop = QPushButton("Disconnect" if live else "Stop")
+        self.stop = QPushButton("قطع الاتصال" if live else "إيقاف")
         self.stop.setEnabled(False)
         self.stop.clicked.connect(self.stop_stream)
-        self.photo_test = QPushButton("Recognize photo") if not live else None
+        self.photo_test = QPushButton("التعرّف على صورة") if not live else None
         if self.photo_test:
             self.photo_test.clicked.connect(self.recognize_photo)
         commands.addWidget(self.start)
@@ -56,19 +56,19 @@ class StreamPage(QWidget):
         if self.photo_test:
             commands.addWidget(self.photo_test)
         commands.addStretch()
-        self.status = QLabel("Idle")
+        self.status = QLabel("جاهز")
         self.status.setObjectName("muted")
         commands.addWidget(self.status)
         root.addLayout(commands)
         body = QHBoxLayout()
-        self.canvas = VideoCanvas("Connect to a camera" if live else "Select a recorded video")
+        self.canvas = VideoCanvas("اتصل بكاميرا" if live else "اختر فيديو مسجلاً")
         body.addWidget(self.canvas, 3)
         side = QWidget()
         side_layout = QVBoxLayout(side)
-        self.metrics = QLabel("FPS: —\nDetection: —\nTracking: —\nRe-ID: —\nDevice: —")
+        self.metrics = QLabel("الإطارات/ث: —\nالكشف: —\nالتتبع: —\nRe-ID: —\nالجهاز: —")
         self.metrics.setObjectName("metrics")
         side_layout.addWidget(self.metrics)
-        side_layout.addWidget(QLabel("Recognition log"))
+        side_layout.addWidget(QLabel("سجل التعرّف"))
         self.log_box = QPlainTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setMaximumBlockCount(180)
@@ -77,22 +77,22 @@ class StreamPage(QWidget):
         root.addLayout(body, 1)
 
     def choose_video(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose video", "", "Videos (*.mp4 *.avi *.mov *.mkv);;All files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, "اختيار فيديو", "", "فيديوهات (*.mp4 *.avi *.mov *.mkv);;كل الملفات (*)")
         if path:
             self.source_path = path
             self.source.setText(path)
-            self.status.setText("Ready to start")
+            self.status.setText("جاهز للبدء")
 
     def start_stream(self) -> None:
         source = self.source.text().strip()
         if not source:
-            QMessageBox.information(self, "Source required", "Enter an RTSP URL or select a video first.")
+            QMessageBox.information(self, "المصدر مطلوب", "أدخل رابط RTSP أو اختر فيديو أولاً.")
             return
         if self.live:
             self.context.settings.camera_url = source
             self.context.settings.save()
         self.log_box.clear()
-        self.status.setText("Connecting and loading local models…")
+        self.status.setText("جارٍ الاتصال وتحميل النماذج المحلية…")
         self.start.setEnabled(False)
         self.stop.setEnabled(True)
         self.thread = QThread(self)
@@ -112,7 +112,7 @@ class StreamPage(QWidget):
 
     def stop_stream(self) -> None:
         if self.worker:
-            self.status.setText("Stopping after the current frame…")
+            self.status.setText("سيتوقف بعد الإطار الحالي…")
             self.worker.stop()
         self.stop.setEnabled(False)
 
@@ -123,28 +123,28 @@ class StreamPage(QWidget):
         self.stream_stopped.emit()
 
     def on_error(self, message: str) -> None:
-        self.status.setText("Stream error")
-        self.log_box.appendPlainText(f"ERROR: {message}")
+        self.status.setText("خطأ في البث")
+        self.log_box.appendPlainText(f"خطأ: {message}")
         self.start.setEnabled(True)
         self.stop.setEnabled(False)
         self.stream_stopped.emit()
 
     def update_metrics(self, data: dict) -> None:
-        extra = f"\nWarning: {data['detector_error']}" if data.get("detector_error") else ""
+        extra = f"\nتحذير: {data['detector_error']}" if data.get("detector_error") else ""
         self.metrics.setText(
-            f"FPS: {data['fps']:.1f}\n"
-            f"Detection: {data['detection_ms']:.0f} ms\n"
-            f"Tracking: {data['tracking_ms']:.0f} ms\n"
-            f"Re-ID: {data['reid_ms']:.0f} ms\n"
-            f"Device: {data['device']}\n"
-            f"Embedding: {data['reid']}{extra}"
+            f"الإطارات/ث: {data['fps']:.1f}\n"
+            f"الكشف: {data['detection_ms']:.0f} مللي ثانية\n"
+            f"التتبع: {data['tracking_ms']:.0f} مللي ثانية\n"
+            f"Re-ID: {data['reid_ms']:.0f} مللي ثانية\n"
+            f"الجهاز: {data['device']}\n"
+            f"التضمين: {data['reid']}{extra}"
         )
 
     def recognize_photo(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose photo to recognize", "", "Images (*.jpg *.jpeg *.png *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(self, "اختيار صورة للتعرّف عليها", "", "صور (*.jpg *.jpeg *.png *.bmp)")
         if not path:
             return
-        self.status.setText("Recognizing photo…")
+        self.status.setText("جارٍ التعرّف على الصورة…")
         self.photo_test.setEnabled(False)
         self.photo_thread = QThread(self)
         self.photo_worker = PhotoRecognitionWorker(path, str(self.context.database.path), self.context.settings)
@@ -161,15 +161,15 @@ class StreamPage(QWidget):
     def photo_recognized(self, image, rows: object, timings: dict, detector_error: str) -> None:
         self.canvas.set_image(image)
         if rows:
-            self.log_box.appendPlainText("\n".join(f"Track {track}: {name} — {similarity:.0%}" for track, name, similarity in rows))
+            self.log_box.appendPlainText("\n".join(f"المسار {track}: {name} — {similarity:.0%}" for track, name, similarity in rows))
         else:
-            self.log_box.appendPlainText(detector_error or "No vehicle found in this photo.")
-        self.status.setText("Photo recognition complete")
+            self.log_box.appendPlainText(detector_error or "لم يتم العثور على مركبة في هذه الصورة.")
+        self.status.setText("اكتمل التعرّف على الصورة")
         self.photo_test.setEnabled(True)
 
     def photo_error(self, message: str) -> None:
-        self.status.setText("Photo recognition failed")
-        self.log_box.appendPlainText(f"ERROR: {message}")
+        self.status.setText("فشل التعرّف على الصورة")
+        self.log_box.appendPlainText(f"خطأ: {message}")
         self.photo_test.setEnabled(True)
 
     def close_stream(self) -> None:

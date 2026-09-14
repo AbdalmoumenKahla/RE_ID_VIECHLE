@@ -46,17 +46,17 @@ class PhotoAnalysisWorker(QObject):
         try:
             image = cv2.imread(self.path)
             if image is None:
-                raise ValueError("The selected photo could not be opened.")
+                raise ValueError("تعذّر فتح الصورة المحددة.")
             pipeline = VisionPipeline(Database(self.database_path), self.settings)
             detections = pipeline.detector.detect(image)
             if detections:
                 best = max(detections, key=lambda d: d.confidence)
                 crop = best.crop(image)
-                status = f"Vehicle detected ({best.confidence:.0%}). Review the crop, then register it."
+                status = f"تم اكتشاف مركبة ({best.confidence:.0%}). راجع الصورة المقصوصة ثم سجّلها."
             else:
                 crop = image.copy()
-                detail = pipeline.detector.error or "No vehicle detected"
-                status = f"{detail}. The full photo is offered as a manual reference."
+                detail = pipeline.detector.error or "لم يتم اكتشاف مركبة"
+                status = f"{detail}. يمكن استخدام الصورة الكاملة كمرجع يدوي."
             self.finished.emit(crop, pipeline.embedder.embed(crop), qimage_from_bgr(crop), status)
         except Exception as exc:
             self.failed.emit(str(exc))
@@ -80,7 +80,7 @@ class RegistrationVideoWorker(QObject):
     def run(self) -> None:
         cap = cv2.VideoCapture(self.path)
         if not cap.isOpened():
-            self.failed.emit("The selected video could not be opened.")
+            self.failed.emit("تعذّر فتح الفيديو المحدد.")
             return
         try:
             total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
@@ -105,13 +105,13 @@ class RegistrationVideoWorker(QObject):
                     if old is None or recognition.detection.confidence > old[0]:
                         candidates[recognition.detection.track_id] = (recognition.detection.confidence, crop, recognition.embedding)
                 if frame_number % (sample_every * 15) == 0:
-                    self.progress.emit(int(frame_number * 100 / total), f"Scanning frame {frame_number:,} — {len(candidates)} tracked vehicles")
+                    self.progress.emit(int(frame_number * 100 / total), f"جارٍ فحص الإطار {frame_number:,} — {len(candidates)} مركبات متتبعة")
             for index, (_, crop, embedding) in enumerate(candidates.values(), start=1):
-                self.candidate.emit(index, crop, embedding, qimage_from_bgr(crop), f"Vehicle {index}")
+                self.candidate.emit(index, crop, embedding, qimage_from_bgr(crop), f"المركبة {index}")
             if pipeline.detector.error:
-                self.finished.emit(f"Scanning complete, but {pipeline.detector.error}")
+                self.finished.emit(f"اكتمل الفحص، لكن {pipeline.detector.error}")
             else:
-                self.finished.emit(f"Scanning complete: {len(candidates)} unique tracked vehicles found.")
+                self.finished.emit(f"اكتمل الفحص: تم العثور على {len(candidates)} مركبات متتبعة فريدة.")
         except Exception as exc:
             self.failed.emit(str(exc))
         finally:
@@ -133,7 +133,7 @@ class PhotoRecognitionWorker(QObject):
         try:
             frame = cv2.imread(self.path)
             if frame is None:
-                raise ValueError("The selected photo could not be opened.")
+                raise ValueError("تعذّر فتح الصورة المحددة.")
             pipeline = VisionPipeline(Database(self.database_path), self.settings)
             results = pipeline.process(frame)
             rows = [(item.detection.track_id, item.vehicle_name, item.similarity) for item in results]
@@ -163,7 +163,7 @@ class StreamWorker(QObject):
         capture_source: Any = self.source
         cap = cv2.VideoCapture(capture_source, cv2.CAP_FFMPEG if self.source.lower().startswith("rtsp") else cv2.CAP_ANY)
         if not cap.isOpened():
-            self.failed.emit("Could not connect to the source. Check its path/URL and OpenCV FFmpeg support.")
+            self.failed.emit("تعذّر الاتصال بالمصدر. تحقق من المسار أو الرابط ودعم OpenCV وFFmpeg.")
             return
         database = Database(self.database_path)
         camera_id = database.upsert_camera(self.camera_name or self.source_label, self.source) if self.source_label == "Live camera" else None
@@ -190,7 +190,7 @@ class StreamWorker(QObject):
                         attendance.seen(result.vehicle_id, camera_id, result.detection.confidence, result.similarity, result.detection.track_id, self.source_label)
                         if now_mono - last_recorded.get(key, 0) > 3:
                             database.add_detection(result.vehicle_id, camera_id, datetime.now().astimezone().isoformat(timespec="seconds"), result.detection.confidence, result.similarity, result.detection.track_id, self.source_label)
-                            self.log.emit(f"{datetime.now():%H:%M:%S}  Track {result.detection.track_id}  {result.vehicle_name}  {result.similarity:.0%}")
+                            self.log.emit(f"{datetime.now():%H:%M:%S}  المسار {result.detection.track_id}  {result.vehicle_name}  {result.similarity:.0%}")
                             last_recorded[key] = now_mono
                     elif (result.detection.track_id or -1) not in seen_unknown_tracks:
                         crop = result.detection.crop(frame)
@@ -198,7 +198,7 @@ class StreamWorker(QObject):
                             path = store_image(crop, CAPTURE_DIR / "unknown", "unknown")
                             database.record_unknown(path, result.embedding, self.source_label, result.similarity)
                             seen_unknown_tracks.add(result.detection.track_id or -1)
-                            self.log.emit(f"{datetime.now():%H:%M:%S}  Track {result.detection.track_id}  Unknown  {result.similarity:.0%}")
+                            self.log.emit(f"{datetime.now():%H:%M:%S}  المسار {result.detection.track_id}  غير معروف  {result.similarity:.0%}")
                 attendance.close_expired()
                 self.frame_ready.emit(qimage_from_bgr(pipeline.annotate(frame, results)))
                 elapsed = max(0.001, perf_counter() - started)
@@ -213,7 +213,7 @@ class StreamWorker(QObject):
                 if wait > 0:
                     sleep(wait)
             attendance.close_expired()
-            self.finished.emit("Stopped" if self.stop_requested.is_set() else "Video ended")
+            self.finished.emit("تم الإيقاف" if self.stop_requested.is_set() else "انتهى الفيديو")
         except Exception as exc:
             self.failed.emit(str(exc))
         finally:

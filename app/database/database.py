@@ -228,6 +228,18 @@ class Database:
         with self.connection() as con:
             return con.execute("SELECT * FROM unknown_vehicles WHERE id=?", (unknown_id,)).fetchone()
 
+    def delete_unknown(self, unknown_id: int) -> None:
+        with self.connection() as con:
+            con.execute("DELETE FROM unknown_vehicles WHERE id=?", (unknown_id,))
+
+    def delete_all_unknown(self) -> list[str]:
+        with self.connection() as con:
+            rows = con.execute(
+                "SELECT image_path FROM unknown_vehicles WHERE resolved_vehicle_id IS NULL"
+            ).fetchall()
+            con.execute("DELETE FROM unknown_vehicles WHERE resolved_vehicle_id IS NULL")
+            return [str(row["image_path"]) for row in rows]
+
     def resolve_unknown(self, unknown_id: int, vehicle_id: int) -> None:
         with self.connection() as con:
             con.execute("UPDATE unknown_vehicles SET resolved_vehicle_id=? WHERE id=?", (vehicle_id, unknown_id))
