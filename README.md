@@ -1,6 +1,6 @@
 # Vehicle Attendance System
 
-A local Windows desktop prototype for registering vehicles, recognizing them in photos, recorded video, and RTSP/IP camera streams, then maintaining visit attendance in SQLite. It is a PySide6 desktop app, not a browser application: detection, tracking, matching, camera capture, storage, and the interface all run on the PC.
+A local Windows desktop prototype for registering vehicles, recognizing them in photos, recorded video, and RTSP/IP camera streams, then maintaining visit attendance in SQLite. It is a PySide6 desktop app, not a browser application: detection, tracking, matching, camera capture, storage, and the interface all run on the PC. The default detector is `yolo26m.pt` (YOLO26 Medium).
 
 ## What is implemented
 
@@ -19,7 +19,7 @@ A local Windows desktop prototype for registering vehicles, recognizing them in 
 
 ## Requirements
 
-Windows 10/11, Python 3.10–3.12 (64-bit), and a camera/video source for practical testing. CPU inference works. An NVIDIA CUDA-compatible PyTorch installation is optional; with **Preferred device = auto**, CUDA is selected when PyTorch reports a compatible GPU.
+Windows 10/11, Python 3.10–3.12 (64-bit), and a camera/video source for practical testing. CPU inference works. An NVIDIA CUDA-compatible PyTorch installation is optional; with **Preferred device = auto**, CUDA is selected when PyTorch reports a compatible GPU. `yolo26m.pt` is the recommended accuracy/throughput balance; switch to `yolo26n.pt` for a weak CPU or `yolo26l.pt` on a capable CUDA workstation after measuring live FPS.
 
 The first run may download pretrained YOLO/torchvision weights if they are not already stored locally. For an air-gapped deployment, place approved model files in `models/` and point Settings at their local paths before running. There are no cloud inference calls after local assets are installed.
 

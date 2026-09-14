@@ -26,7 +26,10 @@ class AppSettings:
     processing_fps: int = 12
     camera_url: str = ""
     preferred_device: str = "auto"  # auto, cpu, cuda
-    yolo_model: str = "yolo11n.pt"
+    # YOLO26 Medium is the best accuracy/throughput default for a desktop
+    # parking installation. Use yolo26n.pt on a weak CPU or yolo26l.pt on a
+    # capable CUDA workstation after validating its live-camera FPS.
+    yolo_model: str = "yolo26m.pt"
     reid_model_path: str = ""
     database_path: str = str(DATABASE_PATH)
 

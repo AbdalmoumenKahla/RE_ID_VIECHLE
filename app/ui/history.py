@@ -216,7 +216,7 @@ class SettingsPage(QWidget):
         settings.absence_timeout_seconds = self.timeout.value()
         settings.processing_fps = self.fps.value()
         settings.preferred_device = self.device.currentText()
-        settings.yolo_model = self.yolo.text().strip() or "yolo11n.pt"
+        settings.yolo_model = self.yolo.text().strip() or "yolo26m.pt"
         settings.reid_model_path = self.reid_path.text().strip()
         settings.database_path = self.database_path.text().strip() or settings.database_path
         settings.save()

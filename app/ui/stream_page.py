@@ -175,3 +175,9 @@ class StreamPage(QWidget):
     def close_stream(self) -> None:
         if self.worker:
             self.worker.stop()
+        if self.thread and self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait(5000)
+        if self.photo_thread and self.photo_thread.isRunning():
+            self.photo_thread.quit()
+            self.photo_thread.wait(5000)
