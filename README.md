@@ -26,7 +26,6 @@ The first run may download pretrained YOLO/torchvision weights if they are not a
 ## Run locally
 
 ```powershell
-cd C:\Users\abdkh\OneDrive\Desktop\Car_re_identefication
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
