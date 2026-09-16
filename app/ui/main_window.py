@@ -126,6 +126,7 @@ class MainWindow(QMainWindow):
 
 APP_STYLE = """
 QMainWindow, QWidget { background: #f4f7fb; color: #172033; font-family: 'Segoe UI'; font-size: 13px; }
+QLabel { background: transparent; }
 QFrame#sidebar { background: #10223d; color: #e7eefb; }
 QLabel#brand { color: #f7c948; font-family: 'Trebuchet MS'; font-size: 28px; font-weight: 900; letter-spacing: 2px; padding-bottom: 4px; }
 QLabel#brandSub { color: #d9efff; font-family: 'Tahoma'; font-size: 15px; font-weight: 700; }
